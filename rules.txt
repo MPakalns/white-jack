@@ -1,0 +1,29 @@
+The rules themself are quite simple. Players compete against each other trying to get to 21 as close as possible.
+
+The game starts with players making a buy-in that is between the before entered min and max values. Now every player has some chips.
+Each round players have to put down a round stake that is between the before entered min and max values. This stake can't be changed for the whole round.
+
+The dealer deals out cards. Each round a player (in clock wise direction) gets to choose between two options:
+(1) ask for a card adding to their score or (2) pass keeping their current score.
+
+The values of the cards are: 2-10: actual values | J, Q, K: 10 | A: 1 or 11.
+The goal is to get as close to 21 as possible. If you step over 21, you burn out and loose the round.
+The winner ir the player who didn't burn out and has the closest score to 21.
+
+Specific winnings calculations are explained further down and are the main difference to classic Black Jack.
+
+There are 3 outcomes of a round: (A) all players burn out, (B) one player has the highest score, (C) two or more players have the highest score.
+Outcome (A). If all players burn out, all their this round's stakes get put into the so called BANK.
+Outcome (B). If one player has the highest score, he gets his stake back + 75% of what is left from the other players' stakes
+             (rounded down to the nearest sum that contains a whole number of chips). The rest of the chips go to the BANK.
+Outcome (C). If two or more players have the same highest score, they get their stake back. The rest gets divided between the winning players.
+             Each gets a proportional size of what they put in (that is - based on their initial stake). It is rounded down to the nearest sum that contains a whole number of chips.
+             The rest of the chips go to the BANK.
+
+After each 10th round players can cash out their chips or buy new ones (do a new buy-in) if they have run out of chips. Those operations can be done only at this time!
+
+After each 9th round the BANK takes out 75% of their chips and divides them among players proportionally based on the total sum of chips that they have. 
+The actual sum gets rounded down to the nearest number of whole chips, the rest stays in the BANK.
+It is done in this order so that a player with no chips can't just make a huge buy-in and get a big proportion from the BANK's payout.
+This way players have to think 10 rounds ahead.
+

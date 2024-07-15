@@ -1,140 +1,540 @@
-#include <iostream>
-#include <unordered_map>
 #include <vector>
 #include <map>
-#include <iomanip>
-using namespace std;
+#include <fstream>
 
+#include "Player.h"
+#include "Money.h"
+
+// Function that floors the winnings to the nearest number of whole chips
+Money floorWinnings(std::vector<std::pair<std::string, Money>> chipValues, Money winnings)
+{
+	Money roundedWinnings = Money();
+	Money leftOverWinnings = winnings;
+	int chipTypes = chipValues.size();
+
+	for (int i = 0; i < chipTypes; i++)
+	{
+		while (leftOverWinnings > Money(0.00))
+		{
+			if (chipValues[chipTypes - 1 - i].second > leftOverWinnings) { break; }
+			leftOverWinnings = leftOverWinnings - chipValues[chipTypes - 1 - i].second;
+			roundedWinnings = roundedWinnings + chipValues[chipTypes - 1 - i].second;
+		}
+
+		if (leftOverWinnings == Money(0.00)) { break; }
+	}
+
+	return roundedWinnings;
+}
+
+// Check if the value is money format e.g. "0.10", "27.35", "24.00"
+bool isMoneyFormat(std::string str)
+{
+	bool afterDecimalPoint = false;
+	int digitsAfterDecimalPoint = 0;
+	for (int i = 0; i < str.length(); i++)
+	{
+		if (afterDecimalPoint == false)
+		{
+			if (str[i] == '.') { afterDecimalPoint = true; }
+			else if (!(str[i] >= 48 && str[i] <= 57)) { return false; }
+		}
+
+		else if (afterDecimalPoint = true)
+		{
+			if (str[i] >= 48 && str[i] <= 57) { digitsAfterDecimalPoint++; }
+			else { return false; }
+
+			if (digitsAfterDecimalPoint > 2) { return false; }
+		}
+	}
+
+	return true;
+}
+
+// Check if the value is made up by only digits
+bool isDigits(std::string str)
+{
+	for (int i = 0; i < str.length(); i++)
+	{
+		if (str[i] < 48 || str[i] > 57) { return false; }
+	}
+	return true;
+}
 
 int main()
 {
-	vector<pair<string, double>> chipValues;
-	chipValues.insert(chipValues.begin()+0, make_pair("white", 0.10));
-	chipValues.insert(chipValues.begin()+1, make_pair("green", 0.20));
-	chipValues.insert(chipValues.begin()+2, make_pair("blue", 0.50));
-	chipValues.insert(chipValues.begin()+3, make_pair("red", 1.00));
-	chipValues.insert(chipValues.begin()+4, make_pair("black", 2.00));
+	// - - - GAME SETTINGS - - -
 
-	double minimalBuyIn = 2.00;
-	double maximalBuyIn = 6.00;
 
-	double minimalRoundStake = 0.20;
-	double maximalRoundStake = 0.60;
+	// Set the values of each of the chip colors
+	std::vector<std::pair<std::string, Money>> chipValues;
+	std::string colors[5] = { "white", "green", "blue", "red", "black" };
+	double values[5] = { 0.10, 0.20, 0.50, 1.00, 2.00 };
+	for (int i = 0; i < colors->size(); i++) { chipValues.insert(chipValues.begin() + i, std::make_pair(colors[i], Money(values[i]))); }
 
-	char answer = 'n';
+	// Different betting values
+	std::map<std::string, Money> bettingValues;
+	bettingValues.insert(std::make_pair("minimal buy-in", Money(2.00)));
+	bettingValues.insert(std::make_pair("maximal buy-in", Money(10.00)));
+	bettingValues.insert(std::make_pair("minimal round stake", Money(0.50)));
+	bettingValues.insert(std::make_pair("maximal round stake", Money(2.50)));
 
+	// The number of players playing this game
 	int playerCount = 0;
 
-	cout << "Welcome to a modified version of the classic game 'Black Jack' called 'White Jack'!" << endl;
-	cout << "The rules will be explained as you will enter the variable values to tailor the game to your liking :)" << endl;
-	cout << endl;
 
-	cout << "In this version of Black Jack each player plays against the others, there is no dealer to play against per se." << endl;
-	cout << endl;
+	// - - - IN-GAME VARIABLES - - -
 
-	cout << "There will be five types of chips:";
+
+	std::vector<Player> players;
+	Money theBank = Money();
+	int currentRound = 0;
+
+
+	// - - - RULES AND GAME PREPERATION - - -
+
+
+	std::string userInput = "";
+	bool correctInput = false;
+
+	// Intro text
+	std::cout << "Welcome to a modified version of the classic game 'Black Jack' called 'White Jack'!" << std::endl;
+	std::cout << "In this version of Black Jack each player plays against the others, not the dealer.'!" << std::endl;
+	std::cout << "The rules will be explained as you will enter the settings to tailor the game to your liking :)'!" << std::endl;
+	std::cout << std::endl;
+
+	// Print out chip variations
+	std::cout << "There will be five types of chips: ";
 	for (auto iterator = chipValues.begin(); iterator != chipValues.end(); ++iterator)
 	{
-		cout << " " << fixed << std::setprecision(2) << iterator->first;
+		std::cout << iterator->first;
 		if (next(iterator) == chipValues.end())
 		{
-			cout << "." << endl;
+			std::cout << "." << std::endl;
 		}
 
-		else { cout << ","; }
+		else { std::cout << ", "; }
 	}
 
-	cout << "The suggested values for each chip are:" << endl;
+	// Print out suggested chip values
+	std::cout << "The suggested values for each chip are: ";
 	for (auto iterator = chipValues.begin(); iterator != chipValues.end(); ++iterator)
 	{
-		cout << iterator->first << ": " << iterator->second << endl;
-	}
-	cout << endl;
-
-	cout << "You can use those values or enter your own. Do you want to change those values [y/n]: ";
-
-	cin >> answer;
-	if (answer == 'y')
-	{
-		for (auto iterator = chipValues.begin(); iterator != chipValues.end(); ++iterator)
+		std::cout << iterator->first << ": " << iterator->second;
+		if (next(iterator) == chipValues.end())
 		{
-			cout << "Enter " << iterator->first << " chip's value: ";
-			cin >> iterator->second;
+			std::cout << "." << std::endl;
+		}
+
+		else { std::cout << ", "; }
+	}
+
+	// Let the players choose the default chip values or enter their own
+	while (!correctInput)
+	{
+		std::cout << "Do you want to change those values [y/n]: ";
+		std::cin >> userInput;
+		if (userInput == "y")
+		{
+			Money lastValue = Money(0);
+			for (auto iterator = chipValues.begin(); iterator != chipValues.end(); iterator++)
+			{
+				bool askingChipValue = true;
+				while (askingChipValue)
+				{
+					std::cout << "Enter " << iterator->first << " chip's value: ";
+					std::cin >> userInput;
+
+					if (isMoneyFormat(userInput))
+					{
+						Money value = Money(std::stod(userInput));
+						if (value > lastValue) { iterator->second = value; lastValue = iterator->second; askingChipValue = false; }
+						else { std::cout << "ERROR: stake must be higher that last chip's stake." << std::endl; }
+					}
+					else { std::cout << "ERROR: Invalid number format, must be like '0.10'." << std::endl; }
+				}
+			}
+			correctInput = true;
+		}
+		else if (userInput == "n") { correctInput = true; }
+		else { std::cout << "ERROR: Invalid answer, must be 'y' or 'n'." << std::endl; }
+	}
+	std::cout << std::endl;
+
+	// Let the player choose the default bettings values or enter their own
+	std::string bettingValuesKeys[4] = {"minimal buy-in", "maximal buy-in", "minimal round stake", "maximal round stake"};
+	for (int i = 0; i < 4; i++)
+	{
+		std::cout << "The recommended " << bettingValuesKeys[i] << " is " << bettingValues[bettingValuesKeys[i]] << "." << std::endl;
+
+		correctInput = false;
+		while (!correctInput)
+		{
+			std::cout << "Do you want to change it [y/n]: ";
+			std::cin >> userInput;
+			if (userInput == "y")
+			{
+				while (!correctInput)
+				{
+					std::cout << "Enter the " << bettingValuesKeys[i] << ": "; std::cin >> userInput;
+					if (isMoneyFormat(userInput)) 
+					{ 
+						Money value = Money(std::stod(userInput));
+						if (bettingValuesKeys[i] == "maximal buy-in" && value < bettingValues["minimal buy-in"])
+						{ 
+							std::cout << "Maximal buy-in can't be less than minimal buy-in." << std::endl;
+						}
+
+						else if (bettingValuesKeys[i] == "maximal round stake" && (value < bettingValues["minimal round stake"]))
+						{
+							std::cout << "Maximal buy-in can't be less than minimal buy-in." << std::endl;
+						}
+
+						else { bettingValues[bettingValuesKeys[i]] = value; correctInput = true; }
+					}
+					else { std::cout << "ERROR: Invalid number format, must be like '0.10'." << std::endl; }
+				}
+			}
+			else if (userInput == "n") { correctInput = true; }
+			else { std::cout << "ERROR: Invalid answer, must be 'y' or 'n'." << std::endl; }
 		}
 	}
-	// else { use the default values }
-	cout << endl;
 
-	cout << "The recommended minimal buy-in is 2.00, but you can change it. Do you want to change it [y/n]: ";
-	cin >> answer;
-	if (answer == 'y') { cout << "Enter the minimal buy-in: "; cin >> minimalBuyIn; }
-	// else { use the default value }
-	cout << endl;
-
-	cout << "The recommended maximal buy-in is 6.00, but you can change it. Do you want to change it [y/n]: ";
-	cin >> answer;
-	if (answer == 'y') { cout << "Enter the maximal buy-in: "; cin >> maximalBuyIn; }
-	// else { use the default value }
-	cout << endl;
-
-	cout << "The recommended minimal round stake is 0.20, but you can change it. Do you want to change it [y/n]: ";
-	cin >> answer;
-	if (answer == 'y') { cout << "Enter the minimal round stake: "; cin >> minimalRoundStake; }
-	// else { use the default value }
-	cout << endl;
-
-	cout << "The recommended maximal round stake is 0.60, but you can change it. Do you want to change it [y/n]: ";
-	cin >> answer;
-	if (answer == 'y') { cout << "Enter the maximal round stake: "; cin >> maximalRoundStake; }
-	// else { use the default value }
-	cout << endl;
-
-	cout << "Those are your numbers for the game:" << endl;
-	cout << "    - Chip values:" << endl;
+	// Print out the game settings' values
+	std::cout << "Those are your numbers for the game:" << std::endl;
+	std::cout << "    - Chip values:" << std::endl;
 	for (auto iterator = chipValues.begin(); iterator != chipValues.end(); ++iterator)
 	{
-		cout << "        - " << iterator->first << ": " << iterator->second << endl;
+		std::cout << "        - " << iterator->first << ": " << iterator->second << std::endl;
 	}
-	cout << "    - Minimal buy-in: " << fixed << std::setprecision(2) << minimalBuyIn << endl;
-	cout << "    - Maximal buy-in: " << fixed << std::setprecision(2) << maximalBuyIn << endl;
-	cout << "    - Minimal round stake: " << fixed << std::setprecision(2) << minimalRoundStake << endl;
-	cout << "    - Maximal round-stake: " << fixed << std::setprecision(2) << maximalRoundStake << endl;
-	cout << endl;
+	std::cout << "    - Minimal buy-in: " << bettingValues["minimal buy-in"] << std::endl;
+	std::cout << "    - Maximal buy-in: " << bettingValues["maximal buy-in"] << std::endl;
+	std::cout << "    - Minimal round stake: " << bettingValues["minimal round stake"] << std::endl;
+	std::cout << "    - Maximal round stake: " << bettingValues["maximal round stake"] << std::endl;
 
-	cout << "The general rules might be confusing but they are meant to give a more unique and interesting play." << endl;
-	cout << "I must say however that a player doesn't need to understand every detail of the further mentioned rules to have an enjoyable play." << endl;
-	cout << "He can play regular Black Jack style: avoiding burning out and trying to get as close to 21 as possible" << endl;
-	cout << endl;
+	// Print out the rules
+	std::ifstream rulesFile("rules.txt");
+	if (rulesFile.is_open()) 
+	{
+		std::string line;
+		while (std::getline(rulesFile, line)) { std::cout << line << std::endl; }
+	}
+	else { std::cerr << "ERROR: Can't open file." << std::endl; return 1; }
+	rulesFile.close();
 
-	cout << "The rules itself are quite simple. Players compete against each other trying to get to 21 as close as possible." << endl;
-	cout << "The game starts with players making a buy-in that is between the before entered values. Now every player has some chips." << endl;
-	cout << "Each round players have to put down a round stake that is also between the before entered values. This stake can't be changed for the whole round." << endl;
-	cout << "The dealer (one of the players or a designated person) deals out cards. Each round a player (in clock wise direction) gets to choose between two options:" << endl;
-	cout << "(1) ask for a card adding to total sum or (2) pass keeping the current total sum." << endl;
-	cout << "The values of the cards are: 2-10 - actual values | J, Q, K - 10 | A - 1 or 11." << endl;
-	cout << "The goal is to get as close to 21 as possible. If you step over 21, you burn and loose the round." << endl;
-	cout << "The winner ir the player who didn't burn down and has the closest score to 21." << endl;
-	cout << "Specific winnings calculations are explained further down and are the main difference to classic black jack" << endl;
-	cout << endl;
 
-	cout << "There are 3 outcomes of a round: (A) all players burn out, (B) one player has the highest score, (C) two or more players have the highest score." << endl;
-	cout << "Outcome (A). If all players burn out, all their this round's stakes get put into the so called BANK." << endl;
-	cout << "Outcome (B). If one player has the highest score, he gets stake back + 75% of what is left from the other players' stakes (rounded down to the nearest sum that contains a whole number of chips). The other ~50% or the rest of the chips goes to the BANK" << endl;
-	cout << "Outcome (C). If two or more players have the same highest score, they get their stake back. From the left over 50% get taken and divided between the winning players. Each gets proportional size of what they put in (that is - based on the initial stake). It is rounded down to the nearest sum that contains a whole number of chips. The other ~50% or the rest of the chips goes to the BANK" << endl;
-	cout << endl;
+	// - - - START OF GAME - - -
 
-	cout << "After each 10th round players can cash out their chips or buy new ones (do a new buy-in) if they have run out of chips. Those operations can be done only at this time!" << endl;
-	cout << "After each 9th round the BANK takes out 75% of their chips and divides them among players proportionally based on the total sum of chips that they have. The actual sum gets rounded, the rest stays in the BANK." << endl;
-	cout << "It is done in this order so that a player with no chips can't just make a huge buy-in and get a big proportion from the BANK's payout." << endl;
-	cout << "This way players have to think 10 rounds ahead." << endl;
-	cout << endl;
 
-	cout << "GAME STARTS" << endl;
-	cout << endl;
+	// Ask to start the game
+	correctInput = false;
+	while (!correctInput)
+	{
+		std::cout << "Are you ready to start the game [y/n]: ";
+		std::cin >> userInput;
+		if (userInput == "n") { return 0; }
+		else if (userInput == "y") { correctInput = true; }
+		else { std::cout << "ERROR: Invalid answer, must be 'y' or 'n'." << std::endl; }
+	}
+	std::cout << std::endl;
 
-	cout << "Please enter the number of players playing this game: ";
-	cin >> playerCount;
-	// dynamic array
+	std::cout << "- - - START THE GAME - - -" << std::endl;
+	std::cout << std::endl;
+
+	// Enter the number of players
+	correctInput = false;
+	while (!correctInput)
+	{
+		std::cout << "Enter the number of players: ";
+		std::cin >> userInput;
+		if (isDigits(userInput))
+		{
+			int value = std::stoi(userInput);
+			if (value >= 1) { playerCount = value; correctInput = true;}
+			else { std::cout << "ERROR: Invalid value, must be >= 1." << std::endl; }
+		}
+
+		else { std::cout << "ERROR: Invalid format, must be an integer." << std::endl; }
+	}
+	std::cout << std::endl;
+
+	// Enter players' names
+	std::cout << "Enter the names of the players" << std::endl;
+	for (int i = 0; i < playerCount; i++)
+	{
+		std::cout << "Enter the name for player " << i + 1 << ": ";
+		std::cin >> userInput;
+		Player player(userInput);
+		players.push_back(player);
+	}
+	std::cout << std::endl;
+
+	// Before 1st round: enter players' initial buy-ins
+	std::cout << "Enter the initial buy-ins of the players" << std::endl;
+	for (Player& player : players)
+	{
+		correctInput = false;
+		while (!correctInput)
+		{
+			std::cout << player.getName() << "'s initial buy-in (" << bettingValues["minimal buy-in"] << " - " << bettingValues["maximal buy-in"] << "): ";
+			std::cin >> userInput;
+			if (isMoneyFormat(userInput))
+			{
+				Money value = Money(std::stod(userInput));
+				if (value >= bettingValues["minimal buy-in"] && value <= bettingValues["maximal buy-in"]) { player.newBuyIn(value); correctInput = true; }
+				else { std::cout << "ERROR: Buy-in value is out of range'." << std::endl; }
+			}
+
+			else { std::cout << "ERROR: Invalid number format, must be like '0.10'." << std::endl; }
+		}
+	}
+	std::cout << std::endl;
+	
+	currentRound = 9;
+	// Continue playing rounds forever
+	while (true)
+	{
+		currentRound++;
+		int roundWinners = 0;
+
+		// Play round: players enter round's stakes
+		std::cout << "- - - ROUND " << currentRound << " - - -" << std::endl;
+		std::cout << std::endl;
+		std::cout << "Enter this round's stakes for the players:" << std::endl;
+		for (Player& player : players)
+		{
+			correctInput = false;
+			while (!correctInput)
+			{
+				std::cout << player.getName() << "'s this round's stake (" << bettingValues["minimal round stake"] << " - " << bettingValues["maximal round stake"] << ", total holdings: " << player.getTotalHoldings() << "): ";
+				std::cin >> userInput;
+				if (isMoneyFormat(userInput))
+				{
+					Money value = Money(std::stod(userInput));
+					if (value >= bettingValues["minimal round stake"] && value <= bettingValues["maximal round stake"] && value <= player.getTotalHoldings() || (value == Money(0.00) && player.getTotalHoldings() == Money(0.00)))
+					{
+						player.newRound(value);
+						correctInput = true;
+					}
+					else { std::cout << "ERROR: Round stake value is out of range." << std::endl; }
+				}
+				else { std::cout << "ERROR: Invalid number format, must be like '0.10'." << std::endl; }
+			}
+		}
+
+		// Play round: enter the number of winners and determine the outcome
+		correctInput = false;
+		while (!correctInput)
+		{
+			std::cout << "How many winners are there (0 - everybody lost, 1 - one winner, 2 - two winners, 3...): ";
+			std::cin >> userInput;
+			if (isDigits(userInput))
+			{
+				int value = std::stoi(userInput);
+				if (value >= 0 && value <= playerCount) { roundWinners = value; correctInput = true; }
+				else { std::cout << "ERROR: Invalid value, must be positive integer and less than all player count." << std::endl; }
+			}
+			else { std::cout << "ERROR: Invalid value, must be integer." << std::endl; }
+		}
+
+		// Gather the money pool that is on the table
+		Money allPlayerStakes = Money();
+		for (Player& player : players)
+		{
+			allPlayerStakes = allPlayerStakes + player.getCurrentStake();
+		}
+
+		// Different round outcomes
+
+		// Outcome (A): everybody lost
+		if (roundWinners == 0)
+		{
+			theBank = theBank + allPlayerStakes;
+			std::cout << "Everybody lost, the BANK gets: " << allPlayerStakes << std::endl;
+			std::cout << std::endl;
+		}
+
+		// Outcome (B): one player won
+		else if (roundWinners == 1)
+		{
+			// Validate the winner's name
+			correctInput = false;
+			while (!correctInput)
+			{
+				std::cout << "Please enter the winning player's name: ";
+				std::cin >> userInput;
+				std::string winnerName = userInput;
+				bool winnerFound = false;
+
+				for (Player& player : players)
+				{
+					if (player.getName() == winnerName)
+					{
+						// Determine the winner's winnings
+						allPlayerStakes = allPlayerStakes - player.getCurrentStake();
+						Money proportionalWinnings = allPlayerStakes * 0.75;
+						Money flooredProportionalWinnings = floorWinnings(chipValues, proportionalWinnings);
+						allPlayerStakes = allPlayerStakes - flooredProportionalWinnings;
+
+						std::cout << std::endl;
+						std::cout << player.getName() << " won. They get: " << player.getCurrentStake() << " + " << flooredProportionalWinnings << " = " << player.getCurrentStake() + flooredProportionalWinnings << std::endl;
+						std::cout << "The BANK gets: " << allPlayerStakes << std::endl;
+						std::cout << std::endl;
+
+						player.wonRound(flooredProportionalWinnings);
+						theBank = theBank + allPlayerStakes;
+
+						correctInput = true;
+					}
+				}
+
+				if (correctInput == false) { std::cout << "There is no player-winner with such a name. Please enter the right one." << std::endl; }
+			}
+		}
+
+		// Outcome (C): two or more players won
+		else if (roundWinners >= 2)
+		{
+			std::vector<std::string> winnerNames;
+			std::cout << "Please enter each winners' names" << std::endl;
+
+			// Validate the winners' names
+			for (int i = 0; i < roundWinners; i++)
+			{
+				std::cout << "Please enter winner's " << i + 1 << " name: ";
+
+				correctInput = false;
+				while (!correctInput)
+				{
+					std::cin >> userInput;
+					for (Player& player : players)
+					{
+						if (player.getName() == userInput)
+						{
+							winnerNames.push_back(userInput);
+							correctInput = true;
+						}
+					}
+
+					if (correctInput == false) { std::cout << "There is no player-winner with such a name. Please enter the right one: "; }
+				}
+			}
+			std::cout << std::endl;
+
+			// Divide winner stakes and looser stakes from the money pool
+			Money winnerStakes = Money();
+			for (Player& player : players)
+			{
+				for (std::string& winnerName : winnerNames)
+				{
+					if (player.getName() == winnerName)
+					{
+						allPlayerStakes = allPlayerStakes - player.getCurrentStake();
+						winnerStakes = winnerStakes + player.getCurrentStake();
+					}
+				}
+			}
+			Money leftoverStakes = allPlayerStakes;
+
+			// Determine each winner's winnings
+			for (Player& player : players)
+			{
+				for (std::string& winnerName : winnerNames)
+				{
+					if (player.getName() == winnerName)
+					{
+						double playerTake = static_cast<double>(player.getCurrentStake().getTotalCents()) / static_cast<double>(winnerStakes.getTotalCents());
+						Money proportionalWinnings = leftoverStakes * playerTake;
+						Money flooredProportionalWinnings = floorWinnings(chipValues, proportionalWinnings);
+						allPlayerStakes = allPlayerStakes - flooredProportionalWinnings;
+						std::cout << player.getName() << " won. They get: " << player.getCurrentStake() << " + " << flooredProportionalWinnings << " = " << player.getCurrentStake() + flooredProportionalWinnings << std::endl;
+						player.wonRound(flooredProportionalWinnings);
+					}
+				}
+			}
+
+			std::cout << "The BANK gets: " << allPlayerStakes << std::endl;
+			std::cout << std::endl;
+			theBank = theBank + allPlayerStakes;
+		}
+
+		// After each 9th round pay out the players from the BANK
+		if (currentRound % 9 == 0)
+		{
+			std::cout << "It's time for the BANK's payout" << std::endl;
+			std::cout << std::endl;
+
+			Money allInitialHoldings = Money(0.00);
+			for (Player& player : players) { allInitialHoldings = allInitialHoldings + player.getTotalHoldings(); }
+
+			Money bankInitialPayOut = theBank * 0.75;
+			bankInitialPayOut = floorWinnings(chipValues, bankInitialPayOut);
+
+			Money playerPayOut = Money(0.00);
+			for (Player& player : players) 
+			{ 
+				double playerTake = static_cast<double>(player.getTotalHoldings().getTotalCents()) / static_cast<double>(allInitialHoldings.getTotalCents());
+				playerPayOut = bankInitialPayOut * playerTake;
+				playerPayOut = floorWinnings(chipValues, playerPayOut);
+				
+				std::cout << "Player " << player.getName() << " gets " << playerPayOut << " from the BANK's payout" << std::endl;
+				player.addToTotalHoldings(playerPayOut);
+				theBank = theBank - playerPayOut;;
+			}
+		}
+
+		// After each 10th round accept new buy-ins and cash-outs
+		if (currentRound % 10 == 0)
+		{
+			std::cout << "It's time to cash out or cash in" << std::endl;
+			std::cout << std::endl;
+
+			for (Player& player : players)
+			{
+				correctInput = false;
+				while (!correctInput)
+				{
+					std::cout << player.getName() << ", do you want to cash out (1) or make a new buy-in (2) or do nothing (3): ";
+					std::cin >> userInput;
+
+					if (userInput == "1") { std::cout << player.getName() << " cashes out, total profit (all holdings - tab): " << player.CashOut() << std::endl; correctInput = true; }
+					else if (userInput == "2") 
+					{
+						while (!correctInput)
+						{
+							std::cout << "Enter the buy-in sum: ";
+							std::cin >> userInput;
+							if (isMoneyFormat(userInput))
+							{
+								Money value = Money(std::stod(userInput));
+								if (value >= bettingValues["minimal buy-in"] && value <= bettingValues["maximal buy-in"])
+								{
+									std::cout << player.getName() << " buys-in, : " << value << std::endl;
+									player.newBuyIn(value);
+									correctInput = true;
+								}
+
+								else { std::cout << "ERROR: Round stake value is out of range." << std::endl; }
+							}
+							else { std::cout << "ERROR: Invalid number format, must be like '0.10'." << std::endl; }
+						}
+					}
+					else if (userInput == "3") { correctInput = true; }
+					else { std::cout << "ERROR: Invalid answer." << std::endl; }
+				}
+			}
+		}
+
+		// Round end : print out info about all players
+		for (Player& player : players)
+		{
+			std::cout << "Player " << player.getName() << "'s total holdings: " << player.getTotalHoldings() << std::endl;
+		}
+
+		std::cout << "The BANK's total holdings: " << theBank << std::endl;
+		std::cout << std::endl;
+	}
 
 	return 0;
-} 
+}
