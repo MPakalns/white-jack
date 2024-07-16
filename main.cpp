@@ -291,7 +291,7 @@ int main()
 	}
 	std::cout << std::endl;
 	
-	currentRound = 9;
+	currentRound = 0;
 	// Continue playing rounds forever
 	while (true)
 	{
