@@ -10,7 +10,7 @@ It is meant to serve as a calculator and game organization software to help calc
 
 ## Installation
 
-Compile and link the files
+Compile and link the files.
 
 ## Contributing
 
